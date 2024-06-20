@@ -1,0 +1,23 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+#include "Packages/com.misaki.voxel-wind/Runtime/Voxel/Voxel.cs.hlsl"
+
+RWStructuredBuffer<Voxel> VoxelsIn;
+int3 VoxelDensity;
+
+RWTexture3D<float4> VoxelTexture;
+
+[numthreads(8,8,8)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x + id.y * VoxelDensity.x + id.z * (VoxelDensity.x * VoxelDensity.y);
+    if (index >= VoxelsIn.Length)
+        return;
+
+    Voxel voxel = VoxelsIn[index];
+    //float3 velocity = normalize(voxel.Velocity).xyz;
+    float speed = length(voxel.Velocity.xyz);
+
+    VoxelTexture[id] = float4(voxel.Velocity.xyz, speed);
+}

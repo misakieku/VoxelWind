@@ -1,0 +1,40 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <Style src="project://database/Packages/com.misaki.voxel-wind/Editor/Style/VoxelWindEditorStyle.uss?fileID=7433441132597879392&amp;guid=f67f0233603415c4ba767470374eebc3&amp;type=3#VoxelWindEditorStyle" />
+    <ui:VisualElement name="SimulationGroup" style="flex-grow: 0;">
+        <ui:Label text="Simulation" class="group-header" />
+        <ui:EnumField label="Compute Device" value="Center" type="VoxelWind.VoxelWindZone+ComputeDevice, VoxelWind" name="ComputeDevice" binding-path="computeDevice" tooltip="Specify the velocity computation device.Build voxel grid will always execute on cpu" />
+    </ui:VisualElement>
+    <ui:VisualElement name="VoxelGridGroup" style="flex-grow: 0;">
+        <ui:Label text="Voxel Grid" name="Label" class="group-header" style="font-size: 12px; -unity-font-style: bold; margin-top: 15px; margin-bottom: 5px;" />
+        <ui:FloatField label="Voxel Size" value="1" name="VoxelSize" binding-path="voxelSize" max-length="10" tooltip="The size of per voxe in meters">
+            <ui:Label text="m" enabled="false" style="-unity-text-align: middle-center;" />
+        </ui:FloatField>
+        <ui:Vector3Field label="Voxel Grid Size" name="VoxelGridSize" binding-path="voxelGridSize" value="16,8,16" tooltip="The size of the whole grid in meters">
+            <ui:Label text="m" enabled="false" style="-unity-text-align: middle-center;" />
+        </ui:Vector3Field>
+        <ui:Vector3Field label="Voxel Grid Offset" name="VoxelGridOffset" binding-path="voxelGridOffset" value="0,0,0" tooltip="The offset of the grid in meters">
+            <ui:Label text="m" enabled="false" style="-unity-text-align: middle-center;" />
+        </ui:Vector3Field>
+        <ui:Vector3IntField label="Voxel Density" binding-path="VoxelGrid.VoxelDensity" name="VoxelDensity" enabled="false" tooltip="The density of the voxel grid" />
+        <ui:HelpBox message-type="Error" text="VoxelGridSize must be a multiple of VoxelSize" name="VoxelSizeWarning" style="height: 50px;" />
+    </ui:VisualElement>
+    <ui:VisualElement name="WindMotorGroup" style="flex-grow: 0;">
+        <ui:Label text="Wind Motor" class="group-header" style="font-size: 12px; -unity-font-style: bold; margin-top: 15px; margin-bottom: 5px;" />
+        <ui:ListView name="GlobalWinds" binding-path="globalWinds" header-title="Global Wind Motor" show-add-remove-footer="true" reorderable="true" show-foldout-header="true" show-border="true" binding-source-selection-mode="AutoAssign" reorder-mode="Animated" />
+        <ui:ListView name="LocalWinds" binding-path="localWinds" header-title="Local Wind Motor" show-add-remove-footer="true" reorderable="true" show-foldout-header="true" show-border="true" binding-source-selection-mode="AutoAssign" reorder-mode="Animated" />
+        <ui:ListView name="WindColliders" binding-path="windColliders" header-title="Wind Collider" show-add-remove-footer="true" reorderable="true" show-foldout-header="true" show-border="true" binding-source-selection-mode="AutoAssign" reorder-mode="Animated" />
+    </ui:VisualElement>
+    <ui:VisualElement name="ComputeShaderGroup" style="flex-grow: 0;">
+        <ui:Label text="Compute Shader" class="group-header" style="font-size: 12px; -unity-font-style: bold; margin-top: 15px; margin-bottom: 5px;" />
+        <uie:ObjectField label="Updating Shader" name="UpdatingShader" binding-path="updatingShader" type="UnityEngine.ComputeShader, UnityEngine.CoreModule" />
+        <ui:HelpBox message-type="Error" text="You have to assign a velocity updating shader to make the whole system work" name="UpdatingShaderWarning" style="height: 50px;" />
+        <uie:ObjectField label="Packing Shader" name="PackingShader" binding-path="packingShader" type="UnityEngine.ComputeShader, UnityEngine.CoreModule" />
+        <ui:HelpBox message-type="Error" text="You have to assign a texture packing shader to make the whole system work" name="PackingShaderWarning" style="height: 50px;" />
+        <ui:Button text="Auto Assign Shader" name="AutoAssignShader" />
+    </ui:VisualElement>
+    <ui:VisualElement name="DebugGroup" style="flex-grow: 0;">
+        <ui:Label text="Debug" class="group-header" style="font-size: 12px; -unity-font-style: bold; margin-top: 15px; margin-bottom: 5px;" />
+        <ui:EnumField label="Debug Mode" value="Center" type="VoxelWind.VoxelWindZone+DebugDrawMode, VoxelWind" name="DebugMode" binding-path="debugMode" />
+        <ui:FloatField label="Debug Line Length" value="1" name="DebugLineLength" binding-path="debugLineLength" max-length="10" />
+    </ui:VisualElement>
+</ui:UXML>

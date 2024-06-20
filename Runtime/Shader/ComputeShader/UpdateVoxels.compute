@@ -1,0 +1,280 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+#include "Packages/com.misaki.voxel-wind/Runtime/Voxel/Voxel.cs.hlsl"
+#include "Packages/com.misaki.voxel-wind/Runtime/WindMotor/GlobalWind.cs.hlsl"
+#include "Packages/com.misaki.voxel-wind/Runtime/WindMotor/LocalWind.cs.hlsl"
+#include "Packages/com.misaki.voxel-wind/Runtime/WindCollider/WindCollider.cs.hlsl"
+#include "Packages/com.misaki.voxel-wind/Runtime/Shader/Include/Utilities.hlsl"
+#include "Packages/com.misaki.voxel-wind/Runtime/Shader/Include/Noise.hlsl"
+
+RWStructuredBuffer<Voxel> voxelsIn;
+//RWStructuredBuffer<Voxel> voxelsOut;
+RWTexture3D<float4> voxelsOut;
+
+float3 voxelGridOffset;
+uint3 voxelDensity;
+float voxelSize;
+float4x4 worldMatrix;
+
+float time;
+float deltaTime;
+
+StructuredBuffer<GlobalWindData> globalWinds;
+StructuredBuffer<LocalWindData> localWinds;
+StructuredBuffer<WindCollider> windColliders;
+
+float3 GetVoxelVector(int x, int y, int z)
+{
+    int index = x + y * voxelDensity.x + z * (voxelDensity.x * voxelDensity.y);
+    return voxelsIn[index].Velocity;
+}
+
+int GetVoxelIndex(float3 position)
+{
+    float3 gridPosition = (position - GetMatrixPosition(worldMatrix)) / voxelSize + voxelDensity / 2;
+    int x = (int) floor(gridPosition.x);
+    int y = (int) floor(gridPosition.y);
+    int z = (int) floor(gridPosition.z);
+
+    return clamp(x + y * voxelDensity.x + z * (voxelDensity.x * voxelDensity.y), 0, voxelsIn.Length);
+}
+
+float3 InterpolateVelocity(float3 sourcePosition)
+{
+    int index = GetVoxelIndex(sourcePosition);
+    int3 positionIndex = GetPositionIndex(index, voxelDensity);
+
+    int x0 = positionIndex.x;
+    int y0 = positionIndex.y;
+    int z0 = positionIndex.z;
+
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+    int z1 = z0 + 1;
+    
+    // Ensure coordinates are within grid bounds
+    x0 = clamp(x0, 0, voxelDensity.x - 1);
+    y0 = clamp(y0, 0, voxelDensity.y - 1);
+    z0 = clamp(z0, 0, voxelDensity.z - 1);
+    x1 = clamp(x1, 0, voxelDensity.x - 1);
+    y1 = clamp(y1, 0, voxelDensity.y - 1);
+    z1 = clamp(z1, 0, voxelDensity.z - 1);
+    
+    // Calculate interpolation weights, ensuring no division by zero
+    float xd = (x1 - x0) > 0 ? (positionIndex.x - x0) / (float) (x1 - x0) : 0;
+    float yd = (y1 - y0) > 0 ? (positionIndex.y - y0) / (float) (y1 - y0) : 0;
+    float zd = (z1 - z0) > 0 ? (positionIndex.z - z0) / (float) (z1 - z0) : 0;
+
+            // Interpolate along x for each y,z pair
+    float3 c00 = lerp(GetVoxelVector(x0, y0, z0), GetVoxelVector(x1, y0, z0), xd);
+    float3 c01 = lerp(GetVoxelVector(x0, y0, z1), GetVoxelVector(x1, y0, z1), xd);
+    float3 c10 = lerp(GetVoxelVector(x0, y1, z0), GetVoxelVector(x1, y1, z0), xd);
+    float3 c11 = lerp(GetVoxelVector(x0, y1, z1), GetVoxelVector(x1, y1, z1), xd);
+
+            // Interpolate along y
+    float3 c0 = lerp(c00, c10, yd);
+    float3 c1 = lerp(c01, c11, yd);
+
+            // Interpolate along z
+    float3 interpolatedVector = lerp(c0, c1, zd);
+
+    return interpolatedVector;
+}
+
+float3 ApplyCollider(Voxel voxel, float3 velocity, float3 windDirection, float windSpeed, out bool active)
+{
+    int arrayLength = windColliders.Length;
+    for (int i = 0; i < arrayLength; i++)
+    {
+        WindCollider collider = windColliders[i];
+        float VoxelToColliderDistance = distance(voxel.Position, collider.Position);
+
+        if (VoxelToColliderDistance <= collider.Radius)
+        {
+            active = false;
+            return 1 - collider.ShadowStrength;
+        }
+
+        // Collider shadow
+        float projection = dot(collider.Position - voxel.Position, windDirection);
+        float3 shadow = voxel.Position + projection * windDirection;
+        float projectionDistance = distance(shadow, collider.Position);
+        if (projectionDistance <= collider.Radius && projection < 0)
+        {
+            float distanceToColliderSurface = distance(voxel.Position, collider.Position) - collider.Radius;
+            float a = saturate(distanceToColliderSurface / (collider.ShadowDistance * collider.Radius * 2 * windSpeed));
+            a = sqrt(a);
+
+            active = true;
+            return lerp(velocity, a * velocity, collider.ShadowStrength);
+        }
+
+        if (VoxelToColliderDistance <= collider.Radius * (1.0f + voxelSize))
+        {
+            float3 colliderDirection = normalize(collider.Velocity);
+            float3 colliderToVoxel = voxel.Position - collider.Position;
+            float CdotV = dot(colliderDirection, normalize(colliderToVoxel));
+
+            active = true;
+            return velocity + collider.PushStrength * collider.Velocity * saturate(CdotV);
+        }
+    }
+
+    active = true;
+    return velocity;
+}
+
+float3 ApplyGlobalWind(Voxel voxel, float3 velocity, out bool needDiffusion)
+{
+    bool isActive = true;
+    int arrayLength = globalWinds.Length;
+    for (int i = 0; i < arrayLength; i++)
+    {
+        GlobalWindData globalWind = globalWinds[i];
+        
+        if (!globalWind.IsActive)
+            continue;
+        
+        switch (globalWind.WindType)
+        {
+            case 0:
+                float3 directionalWind = globalWind.Speed * globalWind.Direction * globalWind.Strength;
+                velocity += directionalWind;
+                break;
+
+            case 1:
+                float3 offset = time * globalWind.Speed * -globalWind.Direction.xyz;
+                float3 position = voxel.Position.xyz;
+
+                float3 noise = snoise3D(float3(position * globalWind.Scale + offset));
+                float3 turbulence = noise * globalWind.Strength;
+
+                velocity += turbulence;
+                break;
+        }
+        
+        //velocity = ApplyCollider(voxel, velocity, globalWind.Direction, globalWind.Speed, isActive);
+    }
+
+    needDiffusion = isActive;
+    return velocity;
+}
+
+float3 ApplyLocalWindZone(Voxel voxel, float3 velocity)
+{
+    int arrayLength = localWinds.Length;
+    for (int i = 0; i < arrayLength; i++)
+    {
+        LocalWindData localWind = localWinds[i];
+        
+        if (!localWind.IsActive)
+            continue;
+        
+        float3 voxelPosition = voxel.Position;
+
+        float speed = 0.0f;
+        float3 direction = 0.0f;
+        float a = 0.0f;
+        bool isInside = false;
+        float linear01 = 0.0f;
+        
+        switch (localWind.WindType)
+        {
+            case 0:
+                isInside = IsInsideCylinder(voxelPosition, localWind.Position, localWind.Direction, localWind.Radius, localWind.Radius, localWind.Speed, linear01);
+                a = 1 - linear01;
+                direction = localWind.Direction;
+                speed = localWind.Speed;
+                break;
+
+            case 1:
+                isInside = IsInsideSphere(voxelPosition, localWind.Position, localWind.Radius, linear01);
+                a = 1 - linear01;
+                direction = normalize(voxelPosition - localWind.Position);
+                speed = localWind.Speed;
+                break;
+
+            case 2:
+                isInside = IsInsideSphere(voxelPosition, localWind.Position, localWind.Radius, linear01);
+                a = 1 - linear01;
+                direction = cross(normalize(voxelPosition - localWind.Position), localWind.Direction);
+                speed = localWind.Speed;
+                break;
+        }
+
+        if (isInside)
+        {
+            velocity = a * speed * direction + velocity * (localWind.IsOverWrite ? 0 : 1);
+        }
+    }
+
+    return velocity;
+}
+
+float3 Diffusion(int index)
+{
+    int3 positionIndex = GetPositionIndex(index, voxelDensity);
+
+    float3 averageVector = 0.0f;
+    int count = 0;
+    
+    for (int dx = -1; dx <= 1; dx++)
+    {
+        for (int dy = -1; dy <= 1; dy++)
+        {
+            for (int dz = -1; dz <= 1; dz++)
+            {
+                int nx = positionIndex.x + dx;
+                int ny = positionIndex.y + dy;
+                int nz = positionIndex.z + dz;
+                
+                if (nx >= 0 && nx < voxelDensity.x &&
+                    ny >= 0 && ny < voxelDensity.y &&
+                    nz >= 0 && nz < voxelDensity.z)
+                {
+                    int neighborIndex = nx + ny * voxelDensity.x + nz * (voxelDensity.x * voxelDensity.y);
+                    averageVector += voxelsIn[neighborIndex].Velocity;
+                    count++;
+                }
+            }
+        }
+    }
+
+    averageVector /= count;
+
+    return averageVector;
+}
+
+
+[numthreads(8,8,8)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x + id.y * voxelDensity.x + id.z * (voxelDensity.x * voxelDensity.y);
+    
+    Voxel voxel = voxelsIn[index];
+    float3 velocity = voxel.Velocity.xyz;
+
+    float3 sourcePosition = voxel.Position - velocity * deltaTime;
+    float3 interpolatedVelocity = InterpolateVelocity(sourcePosition);
+    velocity = interpolatedVelocity;
+    velocity *= 0.3f;
+
+    bool needDiffusion;
+    velocity = ApplyGlobalWind(voxel, velocity, needDiffusion);
+    velocity = ApplyLocalWindZone(voxel, velocity);
+
+    if (needDiffusion)
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            float3 diffusedVector = Diffusion(index);
+            velocity += 0.3f * (diffusedVector - velocity);
+        }
+    }
+    
+    voxel.Velocity = float4(velocity, 1.0f);
+    
+    voxelsIn[index] = voxel;
+    voxelsOut[id] = voxel.Velocity;
+}

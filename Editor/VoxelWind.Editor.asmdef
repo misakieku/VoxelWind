@@ -1,0 +1,18 @@
+{
+    "name": "VoxelWind.Editor",
+    "rootNamespace": "VoxelWindEditor",
+    "references": [
+        "GUID:ee07d3ac2cf3a0d4d93b5422497e4d73"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

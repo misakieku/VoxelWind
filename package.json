@@ -1,0 +1,21 @@
+{
+  "name": "com.misaki.voxel-wind",
+  "version": "1.0.0",
+  "displayName": "Voxel Wind",
+  "description": "The Voxel-Based Wind Simulation System is an advanced computational model designed to simulate and visualize the complex behaviors of wind currents within a three-dimensional space. Utilizing a grid of voxels, this system meticulously calculates the movement of air through various environments, accounting for factors such as direction, speed, and interactions with obstacles and local wind zones.",
+  "keywords": [
+    "Voxel",
+    "Wind",
+    "GPU",
+    "Burst"
+  ],
+  "author": {
+    "name": "Misaki",
+    "email": "misaki_39@outlook.com",
+    "url": "https://github.com/misakieku"
+  },
+  "dependencies": {
+    "com.unity.burst": "1.8.0",
+    "com.unity.mathematics": "1.3.1"
+  }
+}

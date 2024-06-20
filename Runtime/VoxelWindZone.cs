@@ -62,13 +62,6 @@ namespace VoxelWind
                 return;
             }
 
-            if (computeDevice == ComputeDevice.GPU)
-            {
-                _globalWindBuffer = new ComputeBuffer(globalWinds.Count, sizeof(float) * 9);
-                _localWindBuffer = new ComputeBuffer(localWinds.Count, sizeof(float) * 13);
-                _windColliderBuffer = new ComputeBuffer(windColliders.Count, sizeof(float) * 12);
-            }
-
             CreateGLMaterial();
             BuildVoxelGrid();
         }
@@ -230,7 +223,6 @@ namespace VoxelWind
                     var updatedVoxels = new NativeArray<Voxel>(voxelGrid.Voxels.Length, Allocator.TempJob);
                     var updateJob = new UpdateVoxelsJob
                     {
-                        //voxels = tempVoxels,
                         updatedVoxels = updatedVoxels,
 
                         voxelGrid = voxelGrid,
@@ -260,9 +252,7 @@ namespace VoxelWind
                     break;
 
                 case ComputeDevice.GPU:
-                    _globalWindBuffer.SetData(_globalWindDataArray);
-                    _localWindBuffer.SetData(_localWindDataArray);
-                    _windColliderBuffer.SetData(_windColliderDataArray);
+                    UpdateMotorBuffer();
 
                     updatingShader.SetBuffer(0, "voxelsIn", _voxelBuffer);
                     updatingShader.SetTexture(0, "voxelsOut", _voxelTexture);
@@ -274,6 +264,10 @@ namespace VoxelWind
                     updatingShader.SetFloat("time", Time.time);
                     updatingShader.SetFloat("deltaTime", Time.deltaTime);
 
+                    updatingShader.SetInt("globalWindCount", globalWinds.Count);
+                    updatingShader.SetInt("localWindCount", localWinds.Count);
+                    updatingShader.SetInt("windColliderCount", windColliders.Count);
+
                     updatingShader.SetBuffer(0, "globalWinds", _globalWindBuffer);
                     updatingShader.SetBuffer(0, "localWinds", _localWindBuffer);
                     updatingShader.SetBuffer(0, "windColliders", _windColliderBuffer);
@@ -283,7 +277,7 @@ namespace VoxelWind
                     int threadGroupSizeZ = Mathf.CeilToInt(voxelGrid.VoxelDensity.z / 8.0f);
 
                     updatingShader.Dispatch(0, threadGroupSizeX, threadGroupSizeY, threadGroupSizeZ);
-                    
+
                     if (debugMode == DebugDrawMode.None || debugMode == DebugDrawMode.VoxelGrid)
                         break;
 
@@ -300,6 +294,31 @@ namespace VoxelWind
                     });
                     break;
             }
+        }
+
+        private void UpdateMotorBuffer()
+        {
+            if (_globalWindBuffer == null || _globalWindBuffer.count != globalWinds.Count)
+            {
+                _globalWindBuffer?.Release();
+                _globalWindBuffer = new ComputeBuffer(Mathf.Max(globalWinds.Count, 1), sizeof(float) * 9);
+            }
+
+            if (_localWindBuffer == null || _localWindBuffer.count != localWinds.Count)
+            {
+                _localWindBuffer?.Release();
+                _localWindBuffer = new ComputeBuffer(Mathf.Max(localWinds.Count, 1), sizeof(float) * 13);
+            }
+
+            if (_windColliderBuffer == null || _windColliderBuffer.count != windColliders.Count)
+            {
+                _windColliderBuffer?.Release();
+                _windColliderBuffer = new ComputeBuffer(Mathf.Max(windColliders.Count, 1), sizeof(float) * 12);
+            }
+
+            _globalWindBuffer.SetData(_globalWindDataArray);
+            _localWindBuffer.SetData(_localWindDataArray);
+            _windColliderBuffer.SetData(_windColliderDataArray);
         }
 
         private void UpdateWindDataArray()
@@ -326,6 +345,7 @@ namespace VoxelWind
             }
         }
 
+#if UNITY_EDITOR
         private void OnDrawGizmosSelected()
         {
             Gizmos.color = Color.green;
@@ -433,5 +453,6 @@ namespace VoxelWind
             GL.End();
             GL.PopMatrix();
         }
+#endif
     }
 }

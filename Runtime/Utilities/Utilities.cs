@@ -1,6 +1,4 @@
-using GitHub.Unity;
 using Unity.Mathematics;
-using UnityEngine;
 
 namespace VoxelWind
 {
@@ -25,7 +23,7 @@ namespace VoxelWind
             var effectiveRadius = math.lerp(lowerRadius, upperRadius, a);
             var distanceToAxis = math.length(projectedPoint - voxelPosition);
 
-            if (distanceToAxis < 0 || distanceToAxis > effectiveRadius) 
+            if (distanceToAxis < 0 || distanceToAxis > effectiveRadius)
             {
                 linear01 = 0;
                 return false;

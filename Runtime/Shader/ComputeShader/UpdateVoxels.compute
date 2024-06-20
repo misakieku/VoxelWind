@@ -20,6 +20,10 @@ float4x4 worldMatrix;
 float time;
 float deltaTime;
 
+uint globalWindCount;
+uint localWindCount;
+uint windColliderCount;
+
 StructuredBuffer<GlobalWindData> globalWinds;
 StructuredBuffer<LocalWindData> localWinds;
 StructuredBuffer<WindCollider> windColliders;
@@ -84,8 +88,7 @@ float3 InterpolateVelocity(float3 sourcePosition)
 
 float3 ApplyCollider(Voxel voxel, float3 velocity, float3 windDirection, float windSpeed, out bool active)
 {
-    int arrayLength = windColliders.Length;
-    for (int i = 0; i < arrayLength; i++)
+    for (int i = 0; i < windColliderCount; i++)
     {
         WindCollider collider = windColliders[i];
         float VoxelToColliderDistance = distance(voxel.Position, collider.Position);
@@ -128,8 +131,7 @@ float3 ApplyCollider(Voxel voxel, float3 velocity, float3 windDirection, float w
 float3 ApplyGlobalWind(Voxel voxel, float3 velocity, out bool needDiffusion)
 {
     bool isActive = true;
-    int arrayLength = globalWinds.Length;
-    for (int i = 0; i < arrayLength; i++)
+    for (int i = 0; i < globalWindCount; i++)
     {
         GlobalWindData globalWind = globalWinds[i];
         
@@ -140,6 +142,9 @@ float3 ApplyGlobalWind(Voxel voxel, float3 velocity, out bool needDiffusion)
         {
             case 0:
                 float3 directionalWind = globalWind.Speed * globalWind.Direction * globalWind.Strength;
+                float directionalNoise = snoise(voxel.Position.xyz * globalWind.Scale + 3 * time * globalWind.Speed * -globalWind.Direction);
+                directionalNoise = (directionalNoise + 1.0f) / 2.0f;
+                directionalWind *= directionalNoise * globalWind.Strength;
                 velocity += directionalWind;
                 break;
 
@@ -163,8 +168,7 @@ float3 ApplyGlobalWind(Voxel voxel, float3 velocity, out bool needDiffusion)
 
 float3 ApplyLocalWindZone(Voxel voxel, float3 velocity)
 {
-    int arrayLength = localWinds.Length;
-    for (int i = 0; i < arrayLength; i++)
+    for (int i = 0; i < localWindCount; i++)
     {
         LocalWindData localWind = localWinds[i];
         
@@ -246,7 +250,6 @@ float3 Diffusion(int index)
     return averageVector;
 }
 
-
 [numthreads(8,8,8)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
@@ -259,7 +262,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     float3 interpolatedVelocity = InterpolateVelocity(sourcePosition);
     velocity = interpolatedVelocity;
     velocity *= 0.3f;
-
+    
     bool needDiffusion;
     velocity = ApplyGlobalWind(voxel, velocity, needDiffusion);
     velocity = ApplyLocalWindZone(voxel, velocity);

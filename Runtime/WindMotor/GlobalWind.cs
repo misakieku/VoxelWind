@@ -2,6 +2,8 @@ using System;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEditor;
+using System.ComponentModel;
 
 namespace VoxelWind
 {
@@ -24,10 +26,10 @@ namespace VoxelWind
 
     public class GlobalWind : MonoBehaviour
     {
-        public GlobalWindType Type = GlobalWindType.Directional;
+        public GlobalWindType WindType = GlobalWindType.Directional;
         public float Strength = 1.0f;
         public float Speed = 1.0f;
-        public float Scale = 1.0f;
+        public float NoiseScale = 1.0f;
 
         private bool _isActive = true;
 
@@ -42,10 +44,10 @@ namespace VoxelWind
         private void UpdateWind()
         {
             _windData.Direction.xyz = transform.forward;
-            _windData.WindType = Type;
+            _windData.WindType = WindType;
             _windData.Strength = Strength;
             _windData.Speed = Speed;
-            _windData.Scale = Scale;
+            _windData.Scale = NoiseScale;
 
             if (Strength == 0)
             {

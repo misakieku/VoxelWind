@@ -326,6 +326,7 @@ namespace VoxelWind
             }
         }
 
+#if UNITY_EDITOR
         private void OnDrawGizmosSelected()
         {
             Gizmos.color = Color.green;
@@ -433,5 +434,6 @@ namespace VoxelWind
             GL.End();
             GL.PopMatrix();
         }
+#endif
     }
 }

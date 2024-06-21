@@ -75,6 +75,7 @@ namespace VoxelWind
             _windData.IsActive = _isActive;
         }
 
+#if UNITY_EDITOR
         private void OnDrawGizmosSelected()
         {
             switch (WindType)
@@ -93,5 +94,6 @@ namespace VoxelWind
                     break;
             }
         }
+#endif
     }
 }

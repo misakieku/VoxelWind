@@ -7,6 +7,7 @@ using UnityEngine.Rendering;
 
 namespace VoxelWind
 {
+    [ExecuteAlways]
     public class VoxelWindZone : MonoBehaviour
     {
         public enum DebugDrawMode
@@ -53,15 +54,18 @@ namespace VoxelWind
         private ComputeBuffer _windColliderBuffer;
 
         private Material _glMaterial;
+        private bool _IsEditorAndNotPlaying => Application.isEditor && !Application.isPlaying;
+
+        private void Awake()
+        {
+            if (_IsEditorAndNotPlaying)
+            {
+                Shader.SetGlobalTexture("_VoxelWindTexture", _voxelTexture);
+            }
+        }
 
         private void Start()
         {
-            if (packingShader == null)
-            {
-                Debug.LogError("VoxelWindZone: Packing shader is not assigned.");
-                return;
-            }
-
             CreateGLMaterial();
             BuildVoxelGrid();
         }
@@ -190,6 +194,9 @@ namespace VoxelWind
 
         private void Update()
         {
+            if (_IsEditorAndNotPlaying)
+                return;
+
             if (!voxelGrid.Voxels.IsCreated)
             {
                 _isVoxelGridBuilt = false;

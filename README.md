@@ -33,7 +33,7 @@ Go to Window->Package Manager, click on the + sign, and Add from git: https://gi
 - [X] Local wind motor.
 - [ ] Nice editor.
 - [ ] Performance optimization.
-- [ ] Function for shader sampling.
+- [X] Function for shader sampling.
 - [ ] Pressure simulation.
 
 ## Performance

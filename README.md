@@ -10,7 +10,7 @@ Voxel wind system solves the mathematically complex problem of simulating wind i
 
 This package is developed under HDRP but should work with other render pipelines as well since it doesn't rely on any specific rendering features.
 
-![Preview](Documentation~/Image/Preview.png)
+![Preview](https://raw.githubusercontent.com/misakieku/VoxelWind/master/Documentation%7E/Image/Preview.png)
 
 ## Installation
 Go to Window->Package Manager, click on the + sign, and Add from git: https://github.com/misakieku/VoxelWind.git
@@ -37,10 +37,6 @@ Go to Window->Package Manager, click on the + sign, and Add from git: https://gi
 - [ ] Pressure simulation.
 
 ## Performance
-Benchmarked on a Windows 11 PC with an Intel Core i7-13700k CPU and an NVIDIA GeForce RTX 4070 ti GPU.
-
-Data captured using Unity Profiler, GPU timing may not be accurate.
-
 ### Benchmark Settings
 - Voxel Size: 1
 - Grid Size: 32x16x32
@@ -53,7 +49,15 @@ Data captured using Unity Profiler, GPU timing may not be accurate.
 - Wind Collider: 1
 
 ### CPU Simulation
-![CPUPerformance](Documentation~/Image/CPU-Performance.png)
+Benckmark device: Windows 11 PC with an Intel Core i7-13700k CPU
+![CPUPerformance](https://raw.githubusercontent.com/misakieku/VoxelWind/master/Documentation%7E/Image/CPU-Performance.png)
+
+Benckmark device: Windows 10 PC with an AMD Ryzen 5 2600 CPU
+![CPUPerformance](https://raw.githubusercontent.com/misakieku/VoxelWind/master/Documentation%7E/Image/CPU-Performance-AMD-Ryzen5-2600.png)
 
 ### GPU Simulation
-![GPUPerformance](Documentation~/Image/GPU-Performance.png)
+Benckmark device: Windows 11 PC with a Nvdia RTX 4070ti GPU
+![GPUPerformance](https://raw.githubusercontent.com/misakieku/VoxelWind/master/Documentation%7E/Image/GPU-Performance.png)
+
+Benckmark device: Windows 10 PC with a Nvdia GTX 1660 GPU
+![GPUPerformance](https://raw.githubusercontent.com/misakieku/VoxelWind/master/Documentation%7E/Image/GPU-Performance-GTX1660.png)

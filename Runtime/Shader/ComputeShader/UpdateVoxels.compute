@@ -4,7 +4,7 @@
 #include "Packages/com.misaki.voxel-wind/Runtime/Voxel/Voxel.cs.hlsl"
 #include "Packages/com.misaki.voxel-wind/Runtime/WindMotor/GlobalWind.cs.hlsl"
 #include "Packages/com.misaki.voxel-wind/Runtime/WindMotor/LocalWind.cs.hlsl"
-#include "Packages/com.misaki.voxel-wind/Runtime/WindCollider/WindCollider.cs.hlsl"
+#include "Packages/com.misaki.voxel-wind/Runtime/WindCollider/WindColliderData.cs.hlsl"
 #include "Packages/com.misaki.voxel-wind/Runtime/Shader/Include/Utilities.hlsl"
 #include "Packages/com.misaki.voxel-wind/Runtime/Shader/Include/Noise.hlsl"
 
@@ -26,12 +26,12 @@ uint windColliderCount;
 
 StructuredBuffer<GlobalWindData> globalWinds;
 StructuredBuffer<LocalWindData> localWinds;
-StructuredBuffer<WindCollider> windColliders;
+StructuredBuffer<WindColliderData> windColliders;
 
 float3 GetVoxelVector(int x, int y, int z)
 {
     int index = x + y * voxelDensity.x + z * (voxelDensity.x * voxelDensity.y);
-    return voxelsIn[index].Velocity;
+    return voxelsIn[index].Velocity.xyz;
 }
 
 int GetVoxelIndex(float3 position)
@@ -90,8 +90,8 @@ float3 ApplyCollider(Voxel voxel, float3 velocity, float3 windDirection, float w
 {
     for (int i = 0; i < windColliderCount; i++)
     {
-        WindCollider collider = windColliders[i];
-        float VoxelToColliderDistance = distance(voxel.Position, collider.Position);
+        WindColliderData collider = windColliders[i];
+        float VoxelToColliderDistance = distance(voxel.Position.xyz, collider.Position.xyz);
 
         if (VoxelToColliderDistance <= collider.Radius)
         {
@@ -100,12 +100,12 @@ float3 ApplyCollider(Voxel voxel, float3 velocity, float3 windDirection, float w
         }
 
         // Collider shadow
-        float projection = dot(collider.Position - voxel.Position, windDirection);
-        float3 shadow = voxel.Position + projection * windDirection;
-        float projectionDistance = distance(shadow, collider.Position);
+        float projection = dot(collider.Position.xyz - voxel.Position.xyz, windDirection);
+        float3 shadow = voxel.Position.xyz + projection * windDirection;
+        float projectionDistance = distance(shadow, collider.Position.xyz);
         if (projectionDistance <= collider.Radius && projection < 0)
         {
-            float distanceToColliderSurface = distance(voxel.Position, collider.Position) - collider.Radius;
+            float distanceToColliderSurface = distance(voxel.Position.xyz, collider.Position.xyz) - collider.Radius;
             float a = saturate(distanceToColliderSurface / (collider.ShadowDistance * collider.Radius * 2 * windSpeed));
             a = sqrt(a);
 
@@ -115,12 +115,12 @@ float3 ApplyCollider(Voxel voxel, float3 velocity, float3 windDirection, float w
 
         if (VoxelToColliderDistance <= collider.Radius * (1.0f + voxelSize))
         {
-            float3 colliderDirection = normalize(collider.Velocity);
-            float3 colliderToVoxel = voxel.Position - collider.Position;
+            float3 colliderDirection = normalize(collider.Velocity.xyz);
+            float3 colliderToVoxel = voxel.Position.xyz - collider.Position.xyz;
             float CdotV = dot(colliderDirection, normalize(colliderToVoxel));
 
             active = true;
-            return velocity + collider.PushStrength * collider.Velocity * saturate(CdotV);
+            return velocity + collider.PushStrength * collider.Velocity.xyz * saturate(CdotV);
         }
     }
 
@@ -141,10 +141,11 @@ float3 ApplyGlobalWind(Voxel voxel, float3 velocity, out bool needDiffusion)
         switch (globalWind.WindType)
         {
             case 0:
-                float3 directionalWind = globalWind.Speed * globalWind.Direction * globalWind.Strength;
-                float directionalNoise = snoise(voxel.Position.xyz * globalWind.Scale + 3 * time * globalWind.Speed * -globalWind.Direction);
+                float3 directionalWind = globalWind.Speed * globalWind.Direction.xyz * globalWind.Strength;
+                float directionalNoise = snoise(voxel.Position.xyz * globalWind.Scale + 3 * time * globalWind.Speed * -globalWind.Direction.xyz);
                 directionalNoise = (directionalNoise + 1.0f) / 2.0f;
                 directionalWind *= directionalNoise * globalWind.Strength;
+            
                 velocity += directionalWind;
                 break;
 
@@ -159,7 +160,7 @@ float3 ApplyGlobalWind(Voxel voxel, float3 velocity, out bool needDiffusion)
                 break;
         }
         
-        //velocity = ApplyCollider(voxel, velocity, globalWind.Direction, globalWind.Speed, isActive);
+        velocity = ApplyCollider(voxel, velocity, globalWind.Direction.xyz, globalWind.Speed, isActive);
     }
 
     needDiffusion = isActive;
@@ -175,7 +176,7 @@ float3 ApplyLocalWindZone(Voxel voxel, float3 velocity)
         if (!localWind.IsActive)
             continue;
         
-        float3 voxelPosition = voxel.Position;
+        float3 voxelPosition = voxel.Position.xyz;
 
         float speed = 0.0f;
         float3 direction = 0.0f;
@@ -186,23 +187,23 @@ float3 ApplyLocalWindZone(Voxel voxel, float3 velocity)
         switch (localWind.WindType)
         {
             case 0:
-                isInside = IsInsideCylinder(voxelPosition, localWind.Position, localWind.Direction, localWind.Radius, localWind.Radius, localWind.Speed, linear01);
+                isInside = IsInsideCylinder(voxelPosition, localWind.Position.xyz, localWind.Direction.xyz, localWind.Radius, localWind.Radius, localWind.Speed, linear01);
                 a = 1 - linear01;
-                direction = localWind.Direction;
+                direction = localWind.Direction.xyz;
                 speed = localWind.Speed;
                 break;
 
             case 1:
-                isInside = IsInsideSphere(voxelPosition, localWind.Position, localWind.Radius, linear01);
+                isInside = IsInsideSphere(voxelPosition, localWind.Position.xyz, localWind.Radius, linear01);
                 a = 1 - linear01;
-                direction = normalize(voxelPosition - localWind.Position);
+                direction = normalize(voxelPosition - localWind.Position.xyz);
                 speed = localWind.Speed;
                 break;
 
             case 2:
-                isInside = IsInsideSphere(voxelPosition, localWind.Position, localWind.Radius, linear01);
+                isInside = IsInsideSphere(voxelPosition, localWind.Position.xyz, localWind.Radius, linear01);
                 a = 1 - linear01;
-                direction = cross(normalize(voxelPosition - localWind.Position), localWind.Direction);
+                direction = cross(normalize(voxelPosition - localWind.Position.xyz), localWind.Direction.xyz);
                 speed = localWind.Speed;
                 break;
         }
@@ -238,7 +239,7 @@ float3 Diffusion(int index)
                     nz >= 0 && nz < voxelDensity.z)
                 {
                     int neighborIndex = nx + ny * voxelDensity.x + nz * (voxelDensity.x * voxelDensity.y);
-                    averageVector += voxelsIn[neighborIndex].Velocity;
+                    averageVector += voxelsIn[neighborIndex].Velocity.xyz;
                     count++;
                 }
             }
@@ -258,7 +259,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     Voxel voxel = voxelsIn[index];
     float3 velocity = voxel.Velocity.xyz;
 
-    float3 sourcePosition = voxel.Position - velocity * deltaTime;
+    float3 sourcePosition = voxel.Position.xyz - velocity * deltaTime;
     float3 interpolatedVelocity = InterpolateVelocity(sourcePosition);
     velocity = interpolatedVelocity;
     velocity *= 0.3f;

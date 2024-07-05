@@ -17,5 +17,12 @@
   "dependencies": {
     "com.unity.burst": "1.8.0",
     "com.unity.mathematics": "1.2.5"
-  }
+  },
+  "samples": [
+    {
+        "displayName": "Sample Scene",
+        "description": "Contains sample scene for how to use the voxel wind system",
+        "path": "Samples~"
+    }
+]
 }

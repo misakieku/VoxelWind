@@ -154,12 +154,12 @@ namespace VoxelWind
                 switch (globalWind.WindType)
                 {
                     case GlobalWindType.Directional:
-                        var directionalWind = globalWind.Speed * globalWind.Direction;
-                        //var directionalNoise = noise.cnoise(voxel.Position.xyz * globalWind.Scale + 2 * time * globalWind.Speed * - globalWind.Direction);
-                        //directionalNoise = (directionalNoise + 1.0f) / 2.0f;
-                        //directionalWind *= directionalNoise * globalWind.Strength;
+                        var directionalWind = globalWind.Speed * globalWind.Direction.xyz;
+                        var directionalNoise = noise.cnoise(voxel.Position.xyz * globalWind.Scale + 3 * time * globalWind.Speed * -globalWind.Direction.xyz);
+                        directionalNoise = (directionalNoise + 1.0f) / 2.0f;
+                        directionalWind *= directionalNoise * globalWind.Strength;
 
-                        velocity.xyz += directionalWind.xyz;
+                        velocity.xyz += directionalWind;
                         break;
 
                     case GlobalWindType.Turbulent:

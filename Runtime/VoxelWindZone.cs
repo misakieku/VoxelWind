@@ -88,7 +88,7 @@ namespace VoxelWind
 
             if (_glMaterial != null)
             {
-                Destroy(_glMaterial);
+                DestroyImmediate(_glMaterial);
                 _glMaterial = null;
             }
 
